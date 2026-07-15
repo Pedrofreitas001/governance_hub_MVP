@@ -70,6 +70,7 @@ export default function Sidebar({
       </nav>
 
       <div className="px-4 py-4 border-t border-black/5 space-y-2">
+        <Link href="/login" className="block rounded-lg border border-[var(--brand)]/25 px-3 py-2 text-center text-[13px] font-medium text-[var(--brand)] hover:bg-[var(--brand)]/5">Entrar com Supabase</Link>
         <div className="text-xs text-[var(--ink-muted)]">
           Workspace
           <div className="text-[13px] text-[var(--ink-1)] font-medium">{workspaceName}</div>

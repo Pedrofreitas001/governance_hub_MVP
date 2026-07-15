@@ -18,6 +18,8 @@ export default function NewConnectionPage() {
         <p><strong>VTEX:</strong> gere o par AppKey/AppToken no Admin → Configurações da conta → Chaves de aplicação (perfil com acesso a OMS).</p>
         <p><strong>Zendesk:</strong> prefira OAuth 2.0 (Admin Center → Apps e integrações → APIs → OAuth). API tokens legados estão sendo descontinuados.</p>
         <p><strong>Power BI:</strong> app registration no Entra ID + client secret; adicione o service principal como membro do workspace.</p>
+        <p><strong>Supabase:</strong> use a Project URL e uma publishable/anon key protegida por políticas RLS de leitura.</p>
+        <p><strong>OpenRouter:</strong> crie uma API key com limite de gastos; o teste de agente é feito no servidor e auditado.</p>
       </div>
     </div>
   );

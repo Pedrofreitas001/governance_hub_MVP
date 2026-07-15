@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { SyncButton, CredentialReveal, TestButton } from "@/components/ConnectionActions";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 const TIPO_META: Record<string, { logo: string; cor: string; auth: string }> = {
   vtex: { logo: "V", cor: "bg-pink-600", auth: "AppKey + AppToken — Orders e Catalog API (leitura)" },
   zendesk: { logo: "Z", cor: "bg-emerald-700", auth: "OAuth 2.0 ou API token — Tickets API" },
   powerbi: { logo: "P", cor: "bg-amber-500", auth: "Service Principal (Entra ID) — metadados via REST" },
   ads: { logo: "M", cor: "bg-sky-600", auth: "Campanhas de mídia paga (Meta/Google/TikTok/email)" },
+  supabase: { logo: "S", cor: "bg-emerald-600", auth: "Data API com RLS — leitura de projetos e tabelas" },
+  openrouter: { logo: "AI", cor: "bg-violet-700", auth: "API key no Vault — catálogo de modelos e teste de agente" },
 };
 
 export default function ConnectionsPage() {
@@ -16,6 +19,7 @@ export default function ConnectionsPage() {
      FROM connections c WHERE c.workspace_id = 1 ORDER BY c.id`
   ).all() as { id: number; tipo: string; nome: string; status: string; ultima_sincronizacao: string; config: string; ativos: number }[];
   const creds = db.prepare("SELECT id, connection_id, tipo FROM credentials").all() as { id: number; connection_id: number; tipo: string }[];
+  const supabaseConfigured = isSupabaseConfigured();
 
   return (
     <div className="space-y-6">
@@ -31,6 +35,11 @@ export default function ConnectionsPage() {
           + Nova conexão real
         </Link>
       </header>
+
+      <div className={`rounded-xl border p-4 text-sm ${supabaseConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+        <strong>Supabase: {supabaseConfigured ? "configurado" : "aguardando configuração"}</strong>
+        <p className="mt-1 text-[12.5px]">{supabaseConfigured ? "Conexões e auditoria serão espelhadas no workspace configurado." : "Copie .env.example para .env.local, preencha as chaves e reinicie o app. Depois adicione a conexão Supabase abaixo."}</p>
+      </div>
 
       <div className="grid grid-cols-1 gap-4">
         {conns.map((c) => {
