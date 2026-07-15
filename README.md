@@ -12,6 +12,15 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
+## Supabase, acesso e chaves
+
+1. Crie um projeto no Supabase e execute o arquivo `supabase/migrations/202607140001_governance_hub.sql` no **SQL Editor**.
+2. Crie um usuário no Supabase Auth e um workspace associado a ele; então copie o UUID do workspace. Copie `.env.example` para `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_WORKSPACE_ID` e uma `VAULT_KEY` de 64 caracteres hexadecimais. Nunca versione esse arquivo.
+3. Em **Authentication**, habilite o provedor desejado. As tabelas possuem RLS: usuários só podem ler itens do próprio workspace. Escritas administrativas ficam no servidor, após RBAC.
+4. Em **Conexões**, adicione "Supabase" usando a URL e uma chave publishable/anon com políticas de somente leitura. Adicione "OpenRouter" com sua API key e execute o teste curto na página de detalhes.
+
+Quando essas variáveis estiverem preenchidas, novas conexões e toda auditoria são espelhadas no Supabase (com fallback local caso o serviço esteja indisponível). As integrações externas usam uma política de somente leitura: o aplicativo bloqueia qualquer chamada diferente de `GET` às plataformas conectadas. Credenciais são cifradas no Vault e nunca retornam ao navegador. As conexões e a trilha de auditoria também não possuem ação de exclusão.
+
 ### Deploy na Vercel
 
 Funciona sem configuração: em ambiente serverless o filesystem é somente leitura, então o

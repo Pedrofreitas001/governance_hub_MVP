@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { mirrorAuditLog } from "./supabase/persistence";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -429,6 +430,8 @@ export function audit(ator: string, acao: string, alvo: string, detalhe?: string
   getDb()
     .prepare("INSERT INTO audit_logs (workspace_id, ator, acao, alvo, detalhe) VALUES (1, ?, ?, ?, ?)")
     .run(ator, acao, alvo, detalhe ?? null);
+  // Deliberately non-blocking: an outage in the cloud mirror must not lose the local audit event.
+  void mirrorAuditLog({ actorName: ator, action: acao, target: alvo, detail: detalhe });
 }
 
 export function maskEmail(email: string): string {

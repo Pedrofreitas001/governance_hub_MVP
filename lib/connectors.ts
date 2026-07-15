@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { audit } from "./db";
+import { assertReadOnlyMethod } from "./connection-policy";
 
 /**
  * Connection Hub — conectores REAIS (Módulo 3 do PRD).
@@ -19,6 +20,9 @@ export type SyncResult = { detalhes: string[] };
 const TIMEOUT = 20_000;
 
 async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  // All calls to customer applications are GET-only. This protects source
+  // systems even if a future connector accidentally passes a write method.
+  assertReadOnlyMethod(init.method);
   return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" });
 }
 
@@ -171,7 +175,9 @@ export async function syncZendesk(db: Database.Database, connectionId: number, c
 type PowerBiConfig = { tenantId: string; clientId: string; workspaceId: string };
 
 async function powerbiToken(config: PowerBiConfig, secret: { clientSecret: string }): Promise<string> {
-  const res = await apiFetch(`https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, {
+  // This POST is to Microsoft identity only, to mint an access token; it never
+  // changes data in Power BI. Every Power BI API call still goes through apiFetch (GET-only).
+  const res = await fetch(`https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -198,6 +204,25 @@ export async function testPowerBi(config: PowerBiConfig, secret: { clientSecret:
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
+}
+
+export async function testSupabase(config: { projectUrl: string }, secret: { apiKey: string }): Promise<TestResult> {
+  try {
+    const url = new URL(config.projectUrl);
+    if (url.protocol !== "https:" || !url.hostname.endsWith("supabase.co")) return { ok: false, message: "Use a URL HTTPS de projeto Supabase." };
+    const res = await apiFetch(`${url.origin}/rest/v1/`, { headers: { apikey: secret.apiKey, Authorization: `Bearer ${secret.apiKey}` } });
+    if (!res.ok) return { ok: false, message: httpError(res, "Supabase Data API") };
+    return { ok: true, message: "Conexão OK — Data API do projeto Supabase respondeu em modo leitura." };
+  } catch (e) { return { ok: false, message: `Falha ao conectar ao Supabase: ${(e as Error).message}` }; }
+}
+
+export async function testOpenRouter(_config: Record<string, never>, secret: { apiKey: string }): Promise<TestResult> {
+  try {
+    const res = await apiFetch("https://openrouter.ai/api/v1/models", { headers: { Authorization: `Bearer ${secret.apiKey}` } });
+    if (!res.ok) return { ok: false, message: httpError(res, "OpenRouter Models API") };
+    const data = (await res.json()) as { data?: unknown[] };
+    return { ok: true, message: `Conexão OK — ${data.data?.length ?? "vários"} modelos disponíveis para consulta.` };
+  } catch (e) { return { ok: false, message: `Falha ao conectar ao OpenRouter: ${(e as Error).message}` }; }
 }
 
 export async function syncPowerBi(db: Database.Database, connectionId: number, config: PowerBiConfig, secret: { clientSecret: string }): Promise<SyncResult> {
@@ -255,6 +280,16 @@ export const CONNECTOR_FIELDS: Record<
       { key: "workspaceId", label: "Workspace ID do Power BI" },
     ],
     secret: [{ key: "clientSecret", label: "Client Secret" }],
+  },
+  supabase: {
+    label: "Supabase (projeto e tabelas)",
+    config: [{ key: "projectUrl", label: "Project URL", placeholder: "https://seu-projeto.supabase.co" }],
+    secret: [{ key: "apiKey", label: "Publishable / anon key (somente leitura por RLS)" }],
+  },
+  openrouter: {
+    label: "OpenRouter (modelos de IA)",
+    config: [],
+    secret: [{ key: "apiKey", label: "OpenRouter API key" }],
   },
 };
 

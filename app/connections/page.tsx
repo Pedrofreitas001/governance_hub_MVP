@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
-import { SyncButton, CredentialReveal, TestButton, DeleteConnectionButton } from "@/components/ConnectionActions";
+import { SyncButton, CredentialReveal, TestButton } from "@/components/ConnectionActions";
 
 const TIPO_META: Record<string, { logo: string; cor: string; auth: string }> = {
   vtex: { logo: "V", cor: "bg-pink-600", auth: "AppKey + AppToken — Orders e Catalog API (leitura)" },
@@ -60,7 +60,7 @@ export default function ConnectionsPage() {
                 <div className="flex items-center gap-4 mt-1.5 text-[12.5px] text-[var(--ink-2)]">
                   <span>{c.ativos} ativos no catálogo</span>
                   <span className="text-[var(--ink-muted)]">última sincronização: {c.ultima_sincronizacao?.slice(0, 16).replace("T", " ") ?? "nunca"}</span>
-                  {!isDemo && <DeleteConnectionButton connectionId={c.id} nome={c.nome} />}
+                  <Link href={`/connections/${c.id}`} className="text-[12.5px] text-[var(--brand)] hover:underline">ver detalhes</Link>
                 </div>
                 {cred && <div className="mt-1.5"><CredentialReveal credentialId={cred.id} tipo={cred.tipo} /></div>}
               </div>

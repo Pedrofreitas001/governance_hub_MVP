@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getDb, audit } from "@/lib/db";
 import { encrypt } from "@/lib/vault";
 import { getCurrentUser, canEdit } from "@/lib/auth";
-import { testVtex, testZendesk, testPowerBi, CONNECTOR_FIELDS, type TestResult } from "@/lib/connectors";
+import { testVtex, testZendesk, testPowerBi, testSupabase, testOpenRouter, CONNECTOR_FIELDS, type TestResult } from "@/lib/connectors";
+import { mirrorConnection } from "@/lib/supabase/persistence";
 
 /**
  * Cria uma conexão REAL: valida as credenciais contra a API externa,
@@ -32,7 +33,9 @@ export async function POST(req: Request) {
   try {
     if (tipo === "vtex") test = await testVtex(config as never, secret as never);
     else if (tipo === "zendesk") test = await testZendesk(config as never, secret as never);
-    else test = await testPowerBi(config as never, secret as never);
+    else if (tipo === "powerbi") test = await testPowerBi(config as never, secret as never);
+    else if (tipo === "supabase") test = await testSupabase(config as never, secret as never);
+    else test = await testOpenRouter(config as never, secret as never);
   } catch (e) {
     test = { ok: false, message: (e as Error).message };
   }
@@ -43,10 +46,12 @@ export async function POST(req: Request) {
   ).run(tipo, nome.trim(), test.ok ? "conectado" : "erro", JSON.stringify({ ...config, demo: false }));
   const connectionId = Number(info.lastInsertRowid);
 
-  const credTipo = tipo === "vtex" ? "api_key" : tipo === "zendesk" ? (config.authType === "api_token" ? "api_token" : "oauth") : "service_principal";
+  const credTipo = tipo === "vtex" ? "api_key" : tipo === "zendesk" ? (config.authType === "api_token" ? "api_token" : "oauth") : tipo === "powerbi" ? "service_principal" : "api_key";
+  const encryptedSecret = encrypt(JSON.stringify(secret));
   db.prepare("INSERT INTO credentials (connection_id, tipo, valor_criptografado, escopo) VALUES (?, ?, ?, ?)").run(
-    connectionId, credTipo, encrypt(JSON.stringify(secret)), "leitura"
+    connectionId, credTipo, encryptedSecret, "leitura"
   );
+  await mirrorConnection({ localId: connectionId, type: tipo, name: nome.trim(), status: test.ok ? "connected" : "error", config, encryptedSecret });
 
   audit(user.nome, "connection.create", nome.trim(), `Tipo ${tipo}; teste de credencial: ${test.ok ? "OK" : `falhou (${test.message})`}.`);
   return NextResponse.json({ id: connectionId, test });
